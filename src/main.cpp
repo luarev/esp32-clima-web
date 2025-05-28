@@ -5,7 +5,7 @@
 #include "SPIFFS.h"
 
 const char* ssid = "Galaxy_S23";
-const char* password = "luana123159";
+const char* password = "galaxys23luana";
 
 #define DHTPIN 15
 #define DHTTYPE DHT11
