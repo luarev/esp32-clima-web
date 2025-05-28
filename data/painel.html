@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Painel de Monitoramento</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #56ccf2, #2f80ed);
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+
+    h1.title {
+      text-align: center;
+      font-size: 2.2em;
+      color: #fff;
+      margin-bottom: 30px;
+    }
+
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+      padding: 20px;
+      min-width: 200px;
+      max-width: 100%;
+      flex: 1 1 220px;
+      text-align: center;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: scale(1.01);
+      box-shadow: 0 12px 20px rgba(0, 0, 0, 0.25);
+    }
+
+    .value {
+      font-size: 2.5em;
+      font-weight: bold;
+    }
+
+    #logout {
+      display: inline-block;
+      color: white;
+      background-color: #e74c3c;
+      padding: 10px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+
+    #logout:hover {
+      background-color: #c0392b;
+      transform: scale(1.05);
+    }
+
+    .danger {
+      color: red;
+    }
+
+    .warning {
+      color: orange;
+    }
+
+    .normal {
+      color: green;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+
+    @media (max-width: 768px) {
+      .card {
+        flex: 1 1 90%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1 class="title">Painel de Monitoramento</h1>
+
+  <div class="container">
+    <!-- Usuário -->
+    <div class="card">
+      <h3>Usuário</h3>
+      <p><strong>%USER%</strong></p>
+      <a id="logout" href="/logout">Logout</a>
+    </div>
+
+    <!-- Temperatura -->
+    <div class="card">
+      <h3>Temperatura</h3>
+      <p><span id="temp" class="value">--</span> °C</p>
+    </div>
+
+    <!-- Umidade -->
+    <div class="card">
+      <h3>Umidade</h3>
+      <p><span id="umid" class="value">--</span> %</p>
+    </div>
+
+    <!-- Hora -->
+    <div class="card">
+      <h3>Atualizado em</h3>
+      <p id="updateTime">--:--:--</p>
+    </div>
+  </div>
+
+  <!-- Gráficos -->
+  <div class="container" style="margin-top: 20px;">
+    <div class="card" style="flex: 1 1 480px;">
+      <canvas id="tempChart"></canvas>
+    </div>
+    <div class="card" style="flex: 1 1 480px;">
+      <canvas id="umidChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const socket = new WebSocket("ws://" + window.location.hostname + "/ws");
+    const temp = document.getElementById("temp");
+    const umid = document.getElementById("umid");
+    const updateTime = document.getElementById("updateTime");
+    const tempCtx = document.getElementById("tempChart").getContext("2d");
+    const umidCtx = document.getElementById("umidChart").getContext("2d");
+
+    const tempData = {
+      labels: [],
+      datasets: [{
+        label: "Temperatura (°C)",
+        data: [],
+        borderColor: "red",
+        fill: false
+      }]
+    };
+
+    const umidData = {
+      labels: [],
+      datasets: [{
+        label: "Umidade (%)",
+        data: [],
+        borderColor: "blue",
+        fill: false
+      }]
+    };
+
+    const tempChart = new Chart(tempCtx, {
+      type: 'line',
+      data: tempData,
+      options: {
+        responsive: true,
+        animation: { duration: 800 },
+        scales: { y: { min: 0, max: 50 } }
+      }
+    });
+
+    const umidChart = new Chart(umidCtx, {
+      type: 'line',
+      data: umidData,
+      options: {
+        responsive: true,
+        animation: { duration: 800 },
+        scales: { y: { min: 0, max: 100 } }
+      }
+    });
+
+    let t = 0;
+
+    socket.onmessage = function (event) {
+      const dados = JSON.parse(event.data);
+      temp.textContent = dados.temperatura;
+      umid.textContent = dados.umidade;
+
+      temp.className = 'value';
+      umid.className = 'value';
+
+      if (dados.temperatura >= 35 || dados.temperatura <= 15)
+        temp.classList.add("danger");
+      else if (dados.temperatura < 20)
+        temp.classList.add("warning");
+      else
+        temp.classList.add("normal");
+
+      if (dados.umidade >= 80 || dados.umidade <= 30)
+        umid.classList.add("danger");
+      else if (dados.umidade < 40)
+        umid.classList.add("warning");
+      else
+        umid.classList.add("normal");
+
+      if (tempData.labels.length > 20) {
+        tempData.labels.shift();
+        tempData.datasets[0].data.shift();
+        umidData.labels.shift();
+        umidData.datasets[0].data.shift();
+      }
+
+      t++;
+      tempData.labels.push(t);
+      tempData.datasets[0].data.push(dados.temperatura);
+      umidData.labels.push(t);
+      umidData.datasets[0].data.push(dados.umidade);
+
+      tempChart.update();
+      umidChart.update();
+
+      const now = new Date();
+      updateTime.textContent = now.toLocaleTimeString();
+    };
+  </script>
+</body>
+</html>
