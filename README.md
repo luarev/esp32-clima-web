@@ -62,3 +62,12 @@ Este projeto tem como objetivo monitorar a temperatura e umidade do ambiente uti
    ```
 
 7. Acesse o IP informado pelo monitor serial no navegador para abrir a interface web.
+
+---
+
+## Funcionalidades Extras
+
+- Registro de todas as sessões de login no arquivo `sessao.txt`, com data e hora real (via NTP).
+- Armazenamento contínuo dos dados de temperatura e umidade no arquivo `clima.csv`, com marcação de data/hora.
+- Interface web com botões para exportar os dados em formato `.csv` e `.txt`.
+- Todos os dados são armazenados localmente no sistema SPIFFS do ESP32, permanecendo mesmo após reinicializações.
